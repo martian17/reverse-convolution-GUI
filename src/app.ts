@@ -1,6 +1,6 @@
 import {CSS, ELEM} from "htmlgen";
 import {fft, ifft, convolveComplex} from "./convolution";
-import {FlatFFT} from "flat-fft";
+import {FlatFFT64 as FlatFFT} from "flat-fft";
 
 export class App{
     constructor(container: HTMLElement){
@@ -14,10 +14,10 @@ export class App{
 await new Promise(res=>setTimeout(res,1000));
 
 
-type ComplexArray = Float32Array;
+type ComplexArray = Float64Array;
 
 const toPolar = function(vals: ComplexArray){
-    const res = new Float32Array(vals.length);
+    const res = new Float64Array(vals.length);
     for(let j = 0; j < vals.length; j += 2){
         const r = vals[j+0];
         const i = vals[j+1];
@@ -32,29 +32,62 @@ const toPolar = function(vals: ComplexArray){
 const omega = 1.1754943508222875e-38;
 //const omega = 1.1754943508222875e-200;
 
+const toPolar_v = function(r: number, i: number){
+    return [
+        Math.sqrt(r*r+i*i),
+        Math.atan2(i,r)
+    ];
+};
+
+
+const invertComplex = function(r: number, i: number){
+    const d = Math.sqrt(r*r+i*i);
+    if(d === 0)return [0,0];
+    r /= d;
+    i /= d;
+    i = -i;
+    return [r,i];
+};
 
 const reverseConvolution = function(input: ComplexArray, output: ComplexArray){
+    //[output,input] = [input,output];
     //find the other input
     const ifreq = fft(input);
     const ofreq = fft(output);
+    console.log(ifreq);
+    console.log(ofreq);
     //ofreq/ifreq
-    const res = new Float32Array(input.length);
+    const res = new Float64Array(input.length);
     for(let j = 0; j < input.length; j += 2){
+        // // complex division
+        // const r1 = ofreq[j];
+        // const i1 = ofreq[j+1];
+        // const [r2,i2] = invertComplex(ifreq[j],ifreq[j+1]);
+        // if(r2 === 0 && i2 === 0)console.log(j);
+        // res[j] = r1*r2-i1*i2;
+        // res[j+1] = r1*i2+r2*i1;
+
+
         // complex division
         const a = ofreq[j+0];
         const b = ofreq[j+1];
         const c = ifreq[j+0];
         const d = ifreq[j+1];
-        if(a === NaN || b === NaN || c === NaN || d === NaN)console.log("NaN found!!",j,a,b,c,d);
         let denom = c*c+d+d;
-        if(denom === 0)denom = omega;
-        res[j+0] = (a*c+b*d)/denom;
-        res[j+1] = (b*c-a*d)/denom;
-        if(Math.abs(res[j+0]) === Infinity)console.log("infinity!!");
-        if(Math.abs(res[j+1]) === Infinity)console.log("infinity!!");
+        if(denom === 0)console.log(j);
+        if(denom === 0){
+            denom = omega;
+            res[j+0] = 0;
+            res[j+1] = 0;
+        }else{
+            res[j+0] = (a*c+b*d)/denom;
+            res[j+1] = (b*c-a*d)/denom;
+        }
+        // if(Math.abs(res[j+0]) === Infinity)console.log("infinity!!");
+        // if(Math.abs(res[j+1]) === Infinity)console.log("infinity!!");
     }
-    console.log(res);
-    console.log(ifft(res));
+    // console.log(res);
+    // console.log(ifft(res));
     return ifft(res);
 }
 
@@ -190,6 +223,7 @@ App.prototype.init = async function(){
 
     let f0 = [];
     for(let i = 0; i < fwidth; i++){
+        // let val = Math.sin(i/fwidth*10);
         let val = 0;
         if(i > fwidth*0.4 && i < fwidth*0.6)
             val = 1;
@@ -200,7 +234,8 @@ App.prototype.init = async function(){
     let f1 = [];
     for(let i = 0; i < fwidth; i++){
         let r = ((i+fwidth/2)%fwidth)/fwidth-0.5;
-        r *= 50;
+        //let r = ((i)%fwidth)/fwidth-0.5;
+        r *= 10;
         f1.push(Math.E**(-r*r));
     }
     f1 = FlatFFT.toComplex(f1);
@@ -209,7 +244,7 @@ App.prototype.init = async function(){
     this.add(new NormalizedLinePlot(extractReal(f0)));
     this.add("h1",0,"Original kernel function");
     this.add(new NormalizedLinePlot(extractReal(f1)));
-    const fr0 = fft(f0);
+    const fr0 = fft(f1);
     this.add("h1",0,"Frequency domain (real)");
     this.add(new NormalizedLinePlot(extractReal(fr0)));
     this.add("h1",0,"Frequency domain (complex)");
@@ -228,7 +263,6 @@ App.prototype.init = async function(){
     // this.add(new NormalizedLinePlot(extractImaginary(f0__)));
 
     const f0_ = reverseConvolution(f1,fconv);
-    console.log(f1,fconv,f0_);
     this.add("h1",0,"Recovered input function (real)");
     this.add(new NormalizedLinePlot(extractReal(f0_)));
     this.add("h1",0,"Recovered input function (imaginary)");

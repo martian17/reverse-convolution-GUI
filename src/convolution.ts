@@ -1,37 +1,18 @@
-import {FlatFFT} from "flat-fft"
+import {FlatFFT64 as FlatFFT, fft64 as fft, ifft64 as ifft} from "flat-fft"
 
-const fftCache = new Map();
-const getFFT = function(size: number){
-    const order = Math.round(Math.log(size)/Math.log(2));
-    let res;
-    if(!(res = fftCache.get(order))){
-        res = new FlatFFT(order);
-        fftCache.set(order,res);
-    }
-    return res;
-};
-
-export const fft = function(arr: Float32Array){
-    const transformer = getFFT(arr.length/2);
-    return transformer.fft(arr);
-};
-
-export const ifft = function(arr: Float32Array){
-    const transformer = getFFT(arr.length/2);
-    return transformer.ifft(arr);
-};
+export {fft, ifft};
 
 
-export const fft2d = function(buff: Float32Array, width: number, height: number){
+export const fft2d = function(buff: Float64Array, width: number, height: number){
     const w2 = width*2;
     const h2 = height*2;
     const rows = [];
     for(let i = 0; i < height; i++){
         rows.push(fft(buff.slice(i*w2, (i+1)*w2)));
     }
-    let res = new Float32Array(width*height*2);
+    let res = new Float64Array(width*height*2);
     for(let i = 0; i < width; i++){
-        let column = new Float32Array(h2);
+        let column = new Float64Array(h2);
         for(let j = 0; j < height; j++){
             column[j*2+0] = rows[j][i*2+0];
             column[j*2+1] = -rows[j][i*2+1];//idek how it works but like bruh
@@ -45,16 +26,16 @@ export const fft2d = function(buff: Float32Array, width: number, height: number)
     return res;
 };
 
-export const ifft2d = function(buff: Float32Array, width: number, height: number){
+export const ifft2d = function(buff: Float64Array, width: number, height: number){
     const w2 = width*2;
     const h2 = height*2;
     const rows = [];
     for(let i = 0; i < height; i++){
         rows.push(ifft(buff.slice(i*w2, (i+1)*w2)));
     }
-    let res = new Float32Array(width*height*2);
+    let res = new Float64Array(width*height*2);
     for(let i = 0; i < width; i++){
-        let column = new Float32Array(h2);
+        let column = new Float64Array(h2);
         for(let j = 0; j < height; j++){
             column[j*2+0] = rows[j][i*2+0];
             column[j*2+1] = rows[j][i*2+1];
@@ -71,7 +52,7 @@ export const ifft2d = function(buff: Float32Array, width: number, height: number
 
 
 
-export const convolveComplex = function(arr1: Float32Array, arr2: Float32Array){
+export const convolveComplex = function(arr1: Float64Array, arr2: Float64Array){
     let f1 = fft(arr1);
     let f2 = fft(arr2);
     //multiply two complex vectors
@@ -92,7 +73,7 @@ export const convolve = function(arr1: number[], arr2: number[]){
 };
 
 
-export const convolve2dComplex = function(arr1: Float32Array, arr2: Float32Array, width: number, height: number){
+export const convolve2dComplex = function(arr1: Float64Array, arr2: Float64Array, width: number, height: number){
     let f1 = fft2d(arr1,width,height);
     let f2 = fft2d(arr2,width,height);
     //multiply two complex vectors
