@@ -73,10 +73,9 @@ const reverseConvolution = function(input: ComplexArray, output: ComplexArray){
         const b = ofreq[j+1];
         const c = ifreq[j+0];
         const d = ifreq[j+1];
-        let denom = c*c+d+d;
-        if(denom === 0)console.log(j);
+        const denom = c*c+d*d;
         if(denom === 0){
-            denom = omega;
+            console.log("adsfasdfa");
             res[j+0] = 0;
             res[j+1] = 0;
         }else{
@@ -216,6 +215,18 @@ const extractImaginary = function(arr: ComplexArray){
     return r;
 };
 
+const sawtoothTransform = function(arr: ComplexArray, target: ComplexArray){
+    // convolve(fft(target), unknown) |> ifft === arr
+    const af = fft(arr);
+    const tf = fft(target);
+    const unknown = reverseConvolution(tf,af);
+    return unknown;
+};
+
+const inverseSawtoothTransform = function(farr: ComplexArray, target: ComplexArray){
+    return ifft(convolveComplex(fft(target),farr));
+};
+
 
 App.prototype.init = async function(){
     const fwidth = 256;
@@ -223,32 +234,42 @@ App.prototype.init = async function(){
 
     let f0 = [];
     for(let i = 0; i < fwidth; i++){
-        // let val = Math.sin(i/fwidth*10);
-        let val = 0;
-        if(i > fwidth*0.4 && i < fwidth*0.6)
-            val = 1;
-        f0.push(val);
+        let r = ((i)%fwidth)/fwidth-0.5;
+        r *= 10;
+        f0.push(Math.E**(-r*r));
+
+        // let val = 0;
+        // if(i > fwidth*0.4 && i < fwidth*0.6)
+        //     val = 1;
+        // f0.push(val);
     }
     f0 = FlatFFT.toComplex(f0);
 
-    let f1 = [];
+    let saw = [];
     for(let i = 0; i < fwidth; i++){
         let r = ((i+fwidth/2)%fwidth)/fwidth-0.5;
-        //let r = ((i)%fwidth)/fwidth-0.5;
-        r *= 10;
-        f1.push(Math.E**(-r*r));
+        saw.push(r);
     }
-    f1 = FlatFFT.toComplex(f1);
+    saw = FlatFFT.toComplex(saw);
+    let f1 = saw;
+    // for(let i = 0; i < fwidth; i++){
+    //     let r = ((i+fwidth/2)%fwidth)/fwidth-0.5;
+    //     //let r = ((i)%fwidth)/fwidth-0.5;
+    //     //r *= 10;
+    //     //f1.push(Math.E**(-r*r));
+    //     f1.push(r);
+    // }
+    // f1 = FlatFFT.toComplex(f1);
 
     this.add("h1",0,"Original input function");
     this.add(new NormalizedLinePlot(extractReal(f0)));
     this.add("h1",0,"Original kernel function");
     this.add(new NormalizedLinePlot(extractReal(f1)));
-    const fr0 = fft(f1);
-    this.add("h1",0,"Frequency domain (real)");
-    this.add(new NormalizedLinePlot(extractReal(fr0)));
-    this.add("h1",0,"Frequency domain (complex)");
-    this.add(new NormalizedLinePlot(extractImaginary(fr0)));
+    const fr1 = fft(f1);
+    this.add("h1",0,"Kernel Frequency domain (real)");
+    this.add(new NormalizedLinePlot(extractReal(fr1)));
+    this.add("h1",0,"Kernel Frequency domain (complex)");
+    this.add(new NormalizedLinePlot(extractImaginary(fr1)));
     const fconv = convolveComplex(f0,f1);
     this.add("h1",0,"Convolved (real)");
     this.add(new NormalizedLinePlot(extractReal(fconv)));
@@ -267,6 +288,18 @@ App.prototype.init = async function(){
     this.add(new NormalizedLinePlot(extractReal(f0_)));
     this.add("h1",0,"Recovered input function (imaginary)");
     this.add(new NormalizedLinePlot(extractImaginary(f0_)));
+
+
+
+
+    const sawFreq = new Float64Array(fwidth*2);
+    sawFreq[0] = 0;
+    sawFreq[2] = 1;
+    const res = inverseSawtoothTransform(sawFreq,saw);
+    this.add("h1",0,"Inverse sawtooth (real)");
+    this.add(new NormalizedLinePlot(extractReal(res)));
+    this.add("h1",0,"Inverse sawtooth (imaginary)");
+    this.add(new NormalizedLinePlot(extractImaginary(res)));
 
 
 

@@ -16,11 +16,11 @@
     "@types/jest": "^29.5.5",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.1",
-    "typescript": "^5.0.2",
-    "vite": "^4.4.5"
+    "typescript": "^5.2.2",
+    "vite": "^4.4.11"
   },
   "dependencies": {
-    "flat-fft": "^2.0.2",
+    "flat-fft": "^2.1.0",
     "htmlgen": "github:martian17/htmlgen"
   }
 }
